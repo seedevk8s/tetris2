@@ -9,7 +9,7 @@
 |---|---|
 | `index.html` | 화면 구조 (보드 canvas + 점수 패널 + 오버레이) |
 | `style.css` | 스타일 (day01 과 같은 다크 토큰 체계) |
-| `script.js` | 게임 로직 전부 — 조각 정의, 충돌 판정, 게임 루프, 렌더링 |
+| `script.js` | 게임 로직 전부 — 조각 정의, 충돌 판정, 게임 루프, 렌더링, BGM |
 | `PLAN.md` | 만들기 전에 정한 설계 기준선 |
 | `README.md` | 이 문서 |
 | `WORKFLOW.md` | 제작 과정 기록 |
@@ -116,7 +116,8 @@ move() / rotate() / stepDown() / hardDrop()
         └──→ isValid()   ← 벽·바닥·쌓인 블록 판정이 여기 한 곳뿐
 
 loop(t)  requestAnimationFrame + 경과시간 누적
-         누적이 dropInterval 을 넘으면 한 칸 낙하
+         ├ 누적이 dropInterval 을 넘으면 한 칸 낙하
+         └ scheduleMusic()  앞으로 0.2초 안에 울릴 음을 오디오 시계로 예약
 ```
 
 두 가지가 이 코드의 뼈대입니다.
@@ -126,6 +127,9 @@ loop(t)  requestAnimationFrame + 경과시간 누적
 
 **충돌 판정은 `isValid()` 하나** — 이동·회전·자동낙하·하드드롭이 전부 이 함수를 거칩니다.
 각자 경계 검사를 복사해 가지면 "왼쪽 벽은 막히는데 회전으로는 뚫린다" 같은 버그가 생깁니다.
+
+**타이머는 하나뿐입니다** — 음악도 별도 스케줄러 없이 이 루프 안에서 예약합니다.
+정지·재개 처리가 게임 상태 한 곳에서 끝납니다.
 
 낙하 타이밍은 `setInterval` 이 아니라 `requestAnimationFrame` + 경과시간 누적으로 돕니다.
 탭이 백그라운드로 가면 `setInterval` 은 타이밍이 어긋나기 때문입니다.

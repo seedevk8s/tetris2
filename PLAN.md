@@ -249,7 +249,7 @@ function scheduleMusic() {
 눈이 필요한 항목(5·8과 렌더링·레이아웃)은 수동 확인으로 남겼습니다.
 
 ```bash
-node test/logic.test.js     # 90 passed, 0 failed
+node test/logic.test.js     # 206 passed, 0 failed  (BGM 추가 전 90항목)
 ```
 
 | 체크 | 방법 | 결과 |
@@ -294,7 +294,7 @@ python3 -m http.server 8080 --directory src/exercise/chjin/day02/tetris
 - **조각 뽑기** — 단순 무작위 대신 **7-bag**(7종을 섞어 한 벌씩 소진). 5줄 늘어날 뿐인데
   같은 조각이 몰리거나 I 가 한참 안 나오는 구간이 사라집니다.
 - **테스트 추가** — 이 환경에 브라우저가 없어 화면을 눈으로 확인할 수 없으므로,
-  로직만 Node 로 떼어내 검증하는 `test/logic.test.js`(90항목)를 넣었습니다.
+  로직만 Node 로 떼어내 검증하는 `test/logic.test.js`를 넣었습니다(90항목 → BGM 추가 후 206항목).
   `script.js` 에는 Node 전용 코드를 넣지 않고, 테스트가 `script.js` 를 텍스트로 읽어 실행합니다.
 
 ## 마무리
