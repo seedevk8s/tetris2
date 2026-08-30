@@ -83,14 +83,18 @@ tetris/
 ├── index.html        화면 골격 (canvas + 점수/다음 조각 패널)
 ├── style.css         스타일
 ├── script.js         게임 로직 (보드·조각·루프·입력) + BGM
-├── PLAN.md           설계 기준선 — 무엇을 만들기로 했는지
+├── PLAN.md           설계 기준선 — Phase 1(완료) · Phase 2(Supabase, 미구현)
 ├── README.md         사용법 — 실행·조작·규칙
 ├── WORKFLOW.md       작업 기록 — 어떻게 거기 도달했는지
+├── GITHUB_PAGES.md   배포 절차 (완료)
+├── SUPABASE.md       Supabase 준비 절차 (미구현)
+├── DB_DESIGN.md      DB 설계 (미구현)
 └── test/
     └── logic.test.js 로직 테스트 (개발용, 게임 실행에는 불필요)
 ```
 
-**작업을 시작하기 전에 `PLAN.md`를 읽습니다.** 설계 의도가 거기 적혀 있습니다.
+**작업을 시작하기 전에 `PLAN.md`를 읽습니다.** 설계 의도가 거기 적혀 있고,
+**Phase 1(정적 게임, 완료)과 Phase 2(Supabase 백엔드, 미구현)로 나뉘어** 있습니다.
 설계를 바꾸는 작업이면 `PLAN.md`도 함께 갱신해 계획과 결과물이 어긋나지 않게 둡니다.
 
 ### 실행
@@ -146,6 +150,25 @@ tetris/
 - 재배포는 수업 저장소에 push 한 **뒤** `git subtree split` 결과를 `tetris2` 로 보냅니다.
   배포용 사본이라 필요하면 `--force` 로 덮어써도 잃을 것이 없습니다.
 - 새 파일을 추가할 때 **`index.html`·`style.css`·`script.js` 는 저장소 루트**에 있어야 합니다.
+
+### 백엔드 (Supabase — Phase 2, 아직 구현 전)
+
+로그인과 점수 저장을 Supabase로 붙일 계획입니다. **아직 코드는 없습니다.**
+준비 절차는 `SUPABASE.md`, DB 설계는 `DB_DESIGN.md`, 구현 순서는 `PLAN.md` 를 따릅니다.
+
+구현할 때 지킬 것:
+
+- **게임이 백엔드에 의존하지 않습니다.** 로그인·랭킹은 부가 기능이고,
+  Supabase가 멈춰도(무료 플랜은 일주일가량 요청이 없으면 정지) 게임은 그대로 돌아야 합니다.
+  모든 백엔드 호출은 실패를 잡고, 실패해도 게임을 막지 않습니다.
+- **라이브러리를 쓰지 않습니다.** `@supabase/supabase-js` 대신 `fetch` 로 REST를 직접 부릅니다.
+  이 폴더의 무의존성 원칙은 백엔드가 붙어도 유지됩니다.
+- **`script.js` 에 `fetch` 를 넣지 않습니다.** 백엔드 호출은 `api.js`·`auth.js` 에만 둡니다.
+  게임 로직과 통신이 섞이면 백엔드를 들어냈을 때 게임까지 망가집니다.
+- 접속 정보는 **`supabase-config.js` 한 파일**에만 둡니다. 주소를 다른 파일에 하드코딩하지 않습니다.
+- **anon key 는 커밋해도 됩니다** (공개 전제 키이고 방어는 RLS가 합니다).
+  **`service_role` key 와 DB 비밀번호, GitHub Client Secret 은 절대 커밋하지 않습니다.**
+- 스키마를 바꿀 때는 `DB_DESIGN.md` 를 **먼저** 고치고 SQL을 실행합니다.
 
 ### 검증
 
