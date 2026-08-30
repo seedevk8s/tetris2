@@ -83,7 +83,7 @@ tetris/
 ├── index.html        화면 골격 (canvas + 점수/다음 조각 패널)
 ├── style.css         스타일
 ├── script.js         게임 로직 (보드·조각·루프·입력) + BGM
-├── PLAN.md           설계 기준선 — Phase 1(완료) · Phase 2(Supabase, 미구현)
+├── PLAN.md           설계 기준선 — Phase 1 · Phase 2 (둘 다 구현·배포 완료)
 ├── README.md         사용법 — 실행·조작·규칙
 ├── WORKFLOW.md       작업 기록 — 어떻게 거기 도달했는지
 ├── GITHUB_PAGES.md   배포 절차 (완료)
@@ -94,7 +94,7 @@ tetris/
 ```
 
 **작업을 시작하기 전에 `PLAN.md`를 읽습니다.** 설계 의도가 거기 적혀 있고,
-**Phase 1(정적 게임, 완료)과 Phase 2(Supabase 백엔드, 미구현)로 나뉘어** 있습니다.
+**Phase 1(정적 게임)과 Phase 2(Supabase 백엔드)로 나뉘어** 있습니다. 둘 다 구현·배포를 마쳤습니다.
 설계를 바꾸는 작업이면 `PLAN.md`도 함께 갱신해 계획과 결과물이 어긋나지 않게 둡니다.
 
 ### 실행

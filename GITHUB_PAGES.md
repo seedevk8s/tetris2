@@ -188,12 +188,21 @@ push 하면 Pages 가 **자동으로 다시 배포**합니다. 3단계 설정을
 
 ## 함께 올라가는 문서들
 
-배포 저장소에는 게임 파일뿐 아니라 `PLAN.md` · `WORKFLOW.md` · `README.md` · `CLAUDE.md` · `test/` 도
-함께 올라갑니다. **의도한 것입니다** — 저장소를 열었을 때 결과물만이 아니라
-어떻게 만들었는지가 함께 보이는 편이 낫습니다.
+배포 저장소에는 게임 파일뿐 아니라 문서 전부(`PLAN.md` · `WORKFLOW.md` · `README.md` ·
+`CLAUDE.md` · `SUPABASE.md` · `DB_DESIGN.md` · 이 문서)와 `test/` 도 함께 올라갑니다.
+**의도한 것입니다** — 저장소를 열었을 때 결과물만이 아니라 어떻게 만들었는지가 함께 보이는 편이 낫습니다.
 
 빼고 싶다면 방식 B 로 배포하면서 복사 단계에서 제외하면 됩니다.
-다만 `index.html` · `style.css` · `script.js` **셋은 반드시 루트에** 있어야 합니다.
+다만 아래 파일들은 **반드시 루트에** 있어야 합니다.
+
+```
+index.html  style.css  script.js
+supabase-config.js  auth.js  api.js  account-ui.js
+```
+
+`supabase-config.js` 에 들어 있는 anon key 는 **공개해도 되는 키**입니다
+(방어는 DB 의 RLS 가 합니다 — `DB_DESIGN.md` 참고).
+`service_role` key 와 DB 비밀번호는 어떤 경우에도 이 저장소에 들어가면 안 됩니다.
 
 ---
 
@@ -205,6 +214,8 @@ push 하면 Pages 가 **자동으로 다시 배포**합니다. 3단계 설정을
 | Settings 에 Pages 가 없음 | 저장소가 **private** | Settings → General 맨 아래 → Change visibility → Public |
 | 페이지는 뜨는데 스타일이 없음 | 경로 문제 | 이 프로젝트는 상대 경로라 해당 없음. 파일이 **루트**에 있는지 확인 |
 | 화면은 나오는데 소리가 안 남 | 브라우저 자동재생 정책 | **정상입니다.** 키를 한 번 누르면 시작됩니다. `♪ 음악 켜짐` 표시도 확인 |
+| 보드가 잠겨 있고 게임이 안 됨 | **로그인이 필요합니다** | 정상 동작입니다. 오른쪽 패널에서 로그인하거나 가입하세요 |
+| 로그인이 안 되고 랭킹도 안 뜸 | Supabase 프로젝트 일시정지 | 대시보드에서 Restore (`SUPABASE.md` 참고) |
 | 소리가 계속 안 남 | 음소거 상태이거나 미지원 브라우저 | `M` 을 눌러 토글. 지원하지 않는 브라우저면 게임만 동작합니다 |
 | 고쳤는데 반영이 안 됨 | 브라우저 캐시 | 강력 새로고침 (`Ctrl+Shift+R`) |
 | push 가 거부됨 (`rejected`) | 저장소에 README 등 다른 커밋이 있음 | 위 1단계대로 **빈 저장소**로 만들었는지 확인 |
