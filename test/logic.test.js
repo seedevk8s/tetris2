@@ -11,8 +11,9 @@ const path = require('path');
 // ── 최소 DOM 스텁 ─────────────────────────
 const noop = () => {};
 const stubCtx = new Proxy({}, { get: (t, p) => (p in t ? t[p] : noop), set: (t, p, v) => (t[p] = v, true) });
-const el = () => ({ getContext: () => stubCtx, addEventListener: noop, width: 300, height: 600 });
+const el = () => ({ getContext: () => stubCtx, addEventListener: noop, setAttribute: noop, width: 300, height: 600 });
 global.document = { getElementById: el, addEventListener: noop, hidden: false };
+global.window = {};   // AudioContext 없음 — ensureAudio() 가 조용히 넘어가는 경로
 global.requestAnimationFrame = noop;
 global.performance = { now: () => 0 };
 
@@ -100,6 +101,46 @@ ok('스폰 막히면 게임오버', gameOver === true);
 bag = [];
 const drawn = Array.from({length: 7}, () => nextFromBag());
 ok('7-bag 이 7종을 한 번씩', new Set(drawn).size === 7);
+
+// 9. BGM — 음이름 파싱과 주파수
+ok('freq(A4) = 440', Math.abs(freq('A4') - 440) < 1e-9);
+ok('freq(A5) = 880 (한 옥타브)', Math.abs(freq('A5') - 880) < 1e-9);
+ok('freq(C5) ≈ 523.25', Math.abs(freq('C5') - 523.2511) < 0.001);
+ok('freq(G#4) ≈ 415.30', Math.abs(freq('G#4') - 415.3047) < 0.001);
+for (const [name] of MELODY) {
+  if (!name) continue;
+  const f = freq(name);
+  ok(name + ' 주파수가 가청 범위', Number.isFinite(f) && f > 20 && f < 4000);
+}
+
+// 마디가 4박씩 정확히 떨어지는가 —
+// 한 음의 박자를 잘못 적으면 이후 마디가 통째로 밀리고, 마디 첫 음을 짚는 베이스까지 어긋납니다
+let beat = 0, bars = 0, ragged = 0;
+for (const [, beats] of MELODY) {
+  ok('박자가 0보다 큼', beats > 0);
+  const before = Math.floor(beat / BEATS_PER_BAR);
+  beat += beats;
+  const after = Math.floor(beat / BEATS_PER_BAR);
+  // 한 음이 마디 경계를 걸치면 안 됩니다 (경계에 정확히 끝나는 것은 정상)
+  if (after > before && beat % BEATS_PER_BAR !== 0) ragged++;
+  bars = after;
+}
+ok('마디 경계를 걸치는 음이 없음', ragged === 0);
+ok('총 길이가 64박 (A 8마디 + B 8마디)', beat === 64);
+ok('마디 수 16', bars === 16);
+ok('한 바퀴가 약 25.6초', Math.abs(beat * BEAT - 25.6) < 1e-9);
+
+// 마디 첫 음(베이스가 짚는 음)이 모두 실음인가
+let b = 0, silentBar = 0;
+for (const [name, beats] of MELODY) {
+  if (b % BEATS_PER_BAR === 0 && !name) silentBar++;
+  b += beats;
+}
+ok('마디 첫 음이 모두 실음', silentBar === 0);
+
+// 오디오가 없는 환경에서도 조용히 넘어가는가 (AudioContext 미지원 브라우저)
+ensureAudio();
+ok('AudioContext 없으면 조용히 넘어감', audioCtx === null);
 
 console.log('\\n  ' + pass + ' passed, ' + fail + ' failed');
 if (fail) process.exit(1);

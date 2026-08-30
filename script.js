@@ -31,6 +31,52 @@ const MAX_DELTA = 100;    // 프레임 간격 상한(ms). 탭을 백그라운드
 
 const KICKS = [0, -1, 1, -2, 2];  // 회전이 막혔을 때 좌우로 밀어 보는 거리
 
+/* ── BGM ─────────────────────────────────── */
+
+const BPM = 150;
+const BEAT = 60 / BPM;        // 4분음표 한 박의 길이(초)
+const BEATS_PER_BAR = 4;
+const LOOKAHEAD = 0.2;        // 앞으로 이만큼(초) 안에 울릴 음을 미리 예약합니다
+
+const MUSIC_VOLUME = 0.16;    // 마스터 음량 — 게임 소리로 거슬리지 않을 정도
+const MELODY_GAIN = 0.5;
+const BASS_GAIN = 0.32;
+
+/* 코로베이니키(Korobeiniki) — 19세기 러시아 민요, 퍼블릭 도메인.
+   [음이름, 박자]. 4분음표 = 1박. 마디는 4박씩 끊어집니다. */
+const MELODY = [
+  // ── A 파트 (8마디) ──
+  ['E5',1  ],['B4',.5],['C5',.5],['D5',1 ],['C5',.5],['B4',.5],
+  ['A4',1  ],['A4',.5],['C5',.5],['E5',1 ],['D5',.5],['C5',.5],
+  ['B4',1.5],['C5',.5],['D5',1 ],['E5',1 ],
+  ['C5',1  ],['A4',1 ],['A4',2 ],
+
+  ['D5',1.5],['F5',.5],['A5',1 ],['G5',.5],['F5',.5],
+  ['E5',1.5],['C5',.5],['E5',1 ],['D5',.5],['C5',.5],
+  ['B4',1  ],['B4',.5],['C5',.5],['D5',1 ],['E5',1 ],
+  ['C5',1  ],['A4',1 ],['A4',2 ],
+
+  // ── B 파트 (8마디) — 느리게 받는 부분 ──
+  ['E5',2],['C5',2],
+  ['D5',2],['B4',2],
+  ['C5',2],['A4',2],
+  ['G#4',2],['B4',2],
+  ['E5',2],['C5',2],
+  ['D5',2],['B4',2],
+  ['C5',1],['E5',1],['A5',2],
+  ['G#5',4],
+];
+
+const SEMITONE = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+
+/** 음이름을 주파수(Hz)로. A4=440 기준 평균율.
+    음이름→주파수 표를 손으로 적으면 오타를 잡을 방법이 없어 계산합니다. */
+function freq(name) {
+  const m = /^([A-G])(#?)(\d)$/.exec(name);
+  const semis = SEMITONE[m[1]] + (m[2] ? 1 : 0) + (Number(m[3]) + 1) * 12;
+  return 440 * Math.pow(2, (semis - 69) / 12);   // 69 = A4 의 MIDI 번호
+}
+
 /* 조각 정의 — 7종의 색과 회전 상태 4벌.
    회전을 런타임에 행렬로 돌리지 않고 좌표를 미리 펼쳐 둡니다.
    I·O 의 회전 중심 예외를 따로 처리할 필요가 없어집니다.
@@ -100,6 +146,7 @@ const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlayTitle');
 const overlayDesc = document.getElementById('overlayDesc');
 const btnRestart = document.getElementById('btnRestart');
+const btnSound = document.getElementById('btnSound');
 
 /* ──────────────────────────────────────────
    상태
@@ -114,6 +161,13 @@ let dropTimer = 0;
 let lastTime = 0;
 let paused = false;
 let gameOver = false;
+
+let audioCtx = null;   // 첫 사용자 조작 때 만듭니다 (브라우저 자동재생 정책)
+let master = null;
+let muted = false;
+let noteIndex = 0;     // MELODY 에서 다음에 예약할 음
+let nextNoteTime = 0;  // 그 음을 울릴 오디오 시계 시각
+let barBeat = 0;       // 현재 마디 안에서 몇 박째인지 — 베이스를 짚을 지점 판단용
 
 /* ──────────────────────────────────────────
    조각 · 충돌
@@ -154,6 +208,7 @@ function spawn() {
 
   if (!isValid(piece.type, piece.rot, piece.x, piece.y)) {
     gameOver = true;
+    if (audioCtx) audioCtx.suspend();
     showOverlay('게임 오버', `점수 ${score.toLocaleString()}\nR 또는 아래 버튼으로 다시 시작`);
   }
 }
@@ -309,6 +364,92 @@ function updateStats() {
 }
 
 /* ──────────────────────────────────────────
+   BGM — 코로베이니키를 WebAudio 로 합성해 재생합니다.
+   오디오 파일을 쓰지 않으므로 저장소에 바이너리가 들어가지 않고,
+   file:// 로 열어도 로드가 막힐 일이 없습니다.
+   ────────────────────────────────────────── */
+
+/** 첫 사용자 조작 때 오디오를 준비합니다.
+    브라우저는 조작 없이 소리내는 것을 막으므로 페이지 로드 시점에 만들 수 없습니다. */
+function ensureAudio() {
+  if (audioCtx) {
+    if (audioCtx.state === 'suspended' && !paused && !gameOver) audioCtx.resume();
+    return;
+  }
+
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;              // 지원하지 않는 브라우저 — 게임은 그대로 동작합니다
+
+  audioCtx = new AC();
+  master = audioCtx.createGain();
+  master.gain.value = muted ? 0 : MUSIC_VOLUME;
+  master.connect(audioCtx.destination);
+  resetMusic();
+}
+
+function resetMusic() {
+  noteIndex = 0;
+  barBeat = 0;
+  if (audioCtx) nextNoteTime = audioCtx.currentTime + 0.1;
+}
+
+/** 음 하나를 예약합니다. 게인으로 어택·릴리즈를 줘야 딸깍거리는 클릭음이 안 납니다. */
+function playNote(hz, start, dur, type, peak) {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.type = type;
+  osc.frequency.value = hz;
+
+  const end = start + dur;
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(peak, start + 0.01);          // 어택
+  gain.gain.setValueAtTime(peak, Math.max(start + 0.01, end - 0.06));
+  gain.gain.linearRampToValueAtTime(0, end);                       // 릴리즈
+
+  osc.connect(gain).connect(master);
+  osc.start(start);
+  osc.stop(end + 0.02);
+}
+
+/** 게임 루프에서 매 프레임 불립니다.
+    타이머를 따로 두지 않고, 재생 시각만 오디오 시계로 예약해 박자가 밀리지 않게 합니다. */
+function scheduleMusic() {
+  while (nextNoteTime < audioCtx.currentTime + LOOKAHEAD) {
+    const [name, beats] = MELODY[noteIndex];
+    const dur = beats * BEAT;
+
+    if (name) {
+      playNote(freq(name), nextNoteTime, dur, 'square', MELODY_GAIN);
+
+      // 마디 첫 음은 2옥타브 아래로 베이스를 깔아 줍니다.
+      // 화음을 따로 적어 두면 멜로디와 어긋날 수 있어 멜로디에서 파생시킵니다.
+      if (barBeat === 0) {
+        playNote(freq(name) / 4, nextNoteTime, BEATS_PER_BAR * BEAT, 'triangle', BASS_GAIN);
+      }
+    }
+
+    nextNoteTime += dur;
+    barBeat = (barBeat + beats) % BEATS_PER_BAR;
+    noteIndex = (noteIndex + 1) % MELODY.length;   // 끝나면 처음으로
+  }
+}
+
+/** 음소거는 '소리만' 끕니다 — 곡이 흐르던 자리는 그대로 둡니다.
+    (게임이 멈추는 일시정지와 달라야 자연스럽습니다) */
+function toggleMute() {
+  muted = !muted;
+  if (!muted) ensureAudio();
+  if (master) master.gain.value = muted ? 0 : MUSIC_VOLUME;
+  updateSoundButton();
+}
+
+function updateSoundButton() {
+  btnSound.textContent = muted ? '♪ 음악 꺼짐' : '♪ 음악 켜짐';
+  btnSound.setAttribute('aria-pressed', String(!muted));
+}
+
+/* ──────────────────────────────────────────
    오버레이
    ────────────────────────────────────────── */
 
@@ -325,6 +466,11 @@ function hideOverlay() {
 function togglePause() {
   if (gameOver) return;
   paused = !paused;
+
+  // 예약해 둔 음까지 즉시 멈춰야 하므로 게인이 아니라 컨텍스트를 정지시킵니다.
+  // suspend 중에는 ctx.currentTime 도 멈춰 예약 시각 계산이 어긋나지 않습니다.
+  if (audioCtx) paused ? audioCtx.suspend() : audioCtx.resume();
+
   if (paused) showOverlay('일시정지', 'P 를 눌러 계속');
   else hideOverlay();
 }
@@ -343,6 +489,7 @@ function loop(time) {
       dropTimer = 0;
       stepDown();
     }
+    if (audioCtx) scheduleMusic();
   }
 
   draw();
@@ -359,8 +506,11 @@ document.addEventListener('keydown', (e) => {
   // 방향키·스페이스는 페이지를 스크롤시키므로 게임 키에 대해 막습니다
   if (GAME_KEYS.includes(e.key)) e.preventDefault();
 
+  if (!muted) ensureAudio();   // 첫 조작이 있어야 소리를 낼 수 있습니다
+
   const key = e.key.toLowerCase();
 
+  if (key === 'm') { toggleMute(); return; }
   if (key === 'r') { start(); return; }
   if (key === 'p') { togglePause(); return; }
   if (paused || gameOver) return;
@@ -376,8 +526,14 @@ document.addEventListener('keydown', (e) => {
 });
 
 btnRestart.addEventListener('click', () => {
+  if (!muted) ensureAudio();
   start();
   btnRestart.blur();   // 포커스가 남으면 Space 가 버튼을 다시 누릅니다
+});
+
+btnSound.addEventListener('click', () => {
+  toggleMute();
+  btnSound.blur();
 });
 
 // 탭을 벗어나면 자동으로 멈춥니다
@@ -403,6 +559,9 @@ function start() {
 
   hideOverlay();
   updateStats();
+  updateSoundButton();
+  resetMusic();
+  if (audioCtx && audioCtx.state === 'suspended' && !muted) audioCtx.resume();
   spawn();
 }
 

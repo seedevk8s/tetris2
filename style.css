@@ -156,7 +156,7 @@ button{font:inherit;color:inherit;}
   flex:0 0 auto;
 }
 
-.stat,.next,.keys{
+.stat,.next,.keys,.sound{
   padding:12px 14px;
   background:var(--surface);
   border:1px solid var(--line);
@@ -200,6 +200,30 @@ button{font:inherit;color:inherit;}
   margin-top:6px;
   background:var(--surface-2);
   border-radius:6px;
+}
+
+/* ── 음악 토글 ───────────────────────────── */
+.sound{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.btn--sound{
+  width:100%;
+  padding:7px 10px;
+  font-size:13px;
+}
+
+.btn--sound[aria-pressed="false"]{
+  color:var(--dim);
+}
+
+.sound__hint{
+  margin:0;
+  font-size:11px;
+  color:var(--dim);
+  text-align:center;
 }
 
 /* ── 조작 안내 ───────────────────────────── */
