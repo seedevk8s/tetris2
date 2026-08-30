@@ -61,6 +61,27 @@
         <canvas id="next" width="120" height="120" aria-label="다음 조각"></canvas>
       </section>
 
+      <section class="account" id="account">
+        <h2 class="stat__label">계정</h2>
+
+        <div class="account__out" id="accountOut">
+          <button class="btn btn--wide" type="button" id="btnOpenAuth">로그인 / 회원가입</button>
+          <p class="account__hint">로그인하면 점수가 기록됩니다</p>
+        </div>
+
+        <div class="account__in" id="accountIn" hidden>
+          <p class="account__name" id="accountName"></p>
+          <p class="account__best" id="accountBest">최고 기록 없음</p>
+          <button class="btn btn--wide btn--quiet" type="button" id="btnSignOut">로그아웃</button>
+        </div>
+      </section>
+
+      <section class="rank">
+        <h2 class="stat__label">랭킹 TOP 10</h2>
+        <ol class="rank__list" id="rankList"></ol>
+        <p class="rank__msg" id="rankMsg">불러오는 중…</p>
+      </section>
+
       <section class="sound">
         <button class="btn btn--sound" type="button" id="btnSound" aria-pressed="true">♪ 음악 켜짐</button>
         <p class="sound__hint">키를 누르면 시작합니다</p>
@@ -83,8 +104,51 @@
 
   </main>
 
+  <!-- 로그인 · 회원가입 · 비밀번호 재설정 -->
+  <div class="modal" id="authModal" hidden>
+    <div class="modal__box" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+
+      <div class="modal__head">
+        <h2 class="modal__title" id="authTitle">로그인</h2>
+        <button class="modal__close" type="button" id="btnCloseAuth" aria-label="닫기">×</button>
+      </div>
+
+      <div class="tabs" id="authTabs" role="tablist">
+        <button class="tab is-on" type="button" data-mode="signin" role="tab">로그인</button>
+        <button class="tab" type="button" data-mode="signup" role="tab">회원가입</button>
+      </div>
+
+      <form class="form" id="authForm" novalidate>
+        <label class="field">
+          <span class="field__label">이메일</span>
+          <input class="field__input" type="email" id="authEmail" autocomplete="email" required>
+        </label>
+
+        <label class="field" id="fieldUsername" hidden>
+          <span class="field__label">닉네임 <span class="field__note">랭킹에 표시됩니다</span></span>
+          <input class="field__input" type="text" id="authUsername" maxlength="16" autocomplete="nickname">
+        </label>
+
+        <label class="field" id="fieldPassword">
+          <span class="field__label">비밀번호</span>
+          <input class="field__input" type="password" id="authPassword" autocomplete="current-password" required>
+        </label>
+
+        <p class="form__msg" id="authMsg" role="status" aria-live="polite"></p>
+
+        <button class="btn btn--wide btn--primary" type="submit" id="btnAuthSubmit">로그인</button>
+        <button class="linkbtn" type="button" id="btnForgot">비밀번호를 잊으셨나요?</button>
+      </form>
+
+    </div>
+  </div>
+
 </div>
 
+<script src="supabase-config.js"></script>
+<script src="auth.js"></script>
+<script src="api.js"></script>
 <script src="script.js"></script>
+<script src="account-ui.js"></script>
 </body>
 </html>

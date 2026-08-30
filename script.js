@@ -161,6 +161,8 @@ let dropTimer = 0;
 let lastTime = 0;
 let paused = false;
 let gameOver = false;
+let inputLocked = false;   // 화면 위에 폼이 떠 있을 때 게임 키를 막습니다
+let pausedByModal = false;
 
 let audioCtx = null;   // 첫 사용자 조작 때 만듭니다 (브라우저 자동재생 정책)
 let master = null;
@@ -210,6 +212,12 @@ function spawn() {
     gameOver = true;
     if (audioCtx) audioCtx.suspend();
     showOverlay('게임 오버', `점수 ${score.toLocaleString()}\nR 또는 아래 버튼으로 다시 시작`);
+
+    // 점수 전송은 게임 밖의 일입니다. 여기서는 결과만 넘기고 성패를 기다리지 않습니다.
+    // 백엔드가 없거나 실패해도 게임오버 화면은 그대로 뜹니다.
+    if (window.TetrisBackend) {
+      window.TetrisBackend.submitScore({ score, lines, level });
+    }
   }
 }
 
@@ -503,6 +511,10 @@ function loop(time) {
 const GAME_KEYS = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','Spacebar'];
 
 document.addEventListener('keydown', (e) => {
+  // 폼이 떠 있는 동안에는 게임이 키를 가져가지 않습니다.
+  // 막지 않으면 닉네임에 'p' 를 치는 순간 일시정지가 걸립니다.
+  if (inputLocked) return;
+
   // 방향키·스페이스는 페이지를 스크롤시키므로 게임 키에 대해 막습니다
   if (GAME_KEYS.includes(e.key)) e.preventDefault();
 
@@ -544,6 +556,20 @@ document.addEventListener('visibilitychange', () => {
 /* ──────────────────────────────────────────
    시작
    ────────────────────────────────────────── */
+
+/* 게임 밖(로그인 폼 등)에서 잠깐 멈춰 둘 때 쓰는 최소한의 창구입니다.
+   게임은 누가 왜 멈추는지 알지 않습니다. */
+window.TetrisGame = {
+  suspend() {
+    inputLocked = true;
+    if (!paused && !gameOver) { pausedByModal = true; togglePause(); }
+  },
+  resume() {
+    inputLocked = false;
+    if (pausedByModal && paused) togglePause();
+    pausedByModal = false;
+  },
+};
 
 function start() {
   board = Array.from({ length: ROWS }, () => new Array(COLS).fill(null));

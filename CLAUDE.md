@@ -87,8 +87,8 @@ tetris/
 ├── README.md         사용법 — 실행·조작·규칙
 ├── WORKFLOW.md       작업 기록 — 어떻게 거기 도달했는지
 ├── GITHUB_PAGES.md   배포 절차 (완료)
-├── SUPABASE.md       Supabase 준비 절차 (미구현)
-├── DB_DESIGN.md      DB 설계 (미구현)
+├── SUPABASE.md       Supabase 준비 절차
+├── DB_DESIGN.md      DB 설계
 └── test/
     └── logic.test.js 로직 테스트 (개발용, 게임 실행에는 불필요)
 ```
@@ -151,12 +151,20 @@ tetris/
   배포용 사본이라 필요하면 `--force` 로 덮어써도 잃을 것이 없습니다.
 - 새 파일을 추가할 때 **`index.html`·`style.css`·`script.js` 는 저장소 루트**에 있어야 합니다.
 
-### 백엔드 (Supabase — Phase 2, 아직 구현 전)
+### 백엔드 (Supabase — Phase 2, 구현됨)
 
-**이메일·비밀번호 로그인**과 점수 저장을 Supabase로 붙일 계획입니다. **아직 코드는 없습니다.**
-준비 절차는 `SUPABASE.md`, DB 설계는 `DB_DESIGN.md`, 구현 순서는 `PLAN.md` 를 따릅니다.
+**이메일·비밀번호 로그인**과 점수 저장·랭킹을 Supabase로 붙였습니다.
+준비 절차는 `SUPABASE.md`, DB 설계는 `DB_DESIGN.md`, 설계 근거는 `PLAN.md` Phase 2 에 있습니다.
 
-구현할 때 지킬 것:
+```
+supabase-config.js   접속 정보 (여기 한 곳에만)
+auth.js              가입·로그인·세션·토큰 갱신
+api.js               점수 등록·랭킹 조회
+account-ui.js        화면 배선
+script.js            게임. TetrisBackend.submitScore 를 부르기만 합니다
+```
+
+지킬 것:
 
 - **게임이 백엔드에 의존하지 않습니다.** 로그인·랭킹은 부가 기능이고,
   Supabase가 멈춰도(무료 플랜은 일주일가량 요청이 없으면 정지) 게임은 그대로 돌아야 합니다.
