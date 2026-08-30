@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>테트리스</title>
+<meta name="description" content="라이브러리 없이 HTML·CSS·JavaScript만으로 만든 테트리스. 브라우저에서 바로 실행됩니다.">
+<meta name="theme-color" content="#0A0C10">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%A7%B1%3C/text%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&display=swap">
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <header class="topbar">
+    <span class="brand__mark">T</span>
+    <h1 class="brand__title">테트리스</h1>
+  </header>
+
+  <main class="game">
+
+    <!-- 게임 보드 -->
+    <div class="stage">
+      <canvas id="board" width="300" height="600" aria-label="게임 보드"></canvas>
+
+      <!-- 일시정지 · 게임오버 오버레이 -->
+      <div class="overlay" id="overlay" hidden>
+        <p class="overlay__title" id="overlayTitle">일시정지</p>
+        <p class="overlay__desc" id="overlayDesc">P 를 눌러 계속</p>
+        <button class="btn" type="button" id="btnRestart">다시 시작</button>
+      </div>
+    </div>
+
+    <!-- 사이드 패널 -->
+    <aside class="panel">
+
+      <section class="stat stat--main">
+        <h2 class="stat__label">점수</h2>
+        <p class="stat__value" id="score" role="status" aria-live="polite">0</p>
+      </section>
+
+      <div class="stat-row">
+        <section class="stat">
+          <h2 class="stat__label">지운 줄</h2>
+          <p class="stat__value stat__value--sm" id="lines">0</p>
+        </section>
+        <section class="stat">
+          <h2 class="stat__label">레벨</h2>
+          <p class="stat__value stat__value--sm" id="level">1</p>
+        </section>
+      </div>
+
+      <section class="next">
+        <h2 class="stat__label">다음</h2>
+        <canvas id="next" width="120" height="120" aria-label="다음 조각"></canvas>
+      </section>
+
+      <section class="keys">
+        <h2 class="stat__label">조작</h2>
+        <dl class="keys__list">
+          <dt><kbd>←</kbd><kbd>→</kbd></dt><dd>이동</dd>
+          <dt><kbd>↑</kbd></dt><dd>회전</dd>
+          <dt><kbd>↓</kbd></dt><dd>빨리 내리기</dd>
+          <dt><kbd>Space</kbd></dt><dd>바닥까지</dd>
+          <dt><kbd>P</kbd></dt><dd>일시정지</dd>
+          <dt><kbd>R</kbd></dt><dd>다시 시작</dd>
+        </dl>
+      </section>
+
+    </aside>
+
+  </main>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
