@@ -263,11 +263,55 @@ BGM 을 넣으며 테스트가 90 → 206 으로 늘었는데 문서 곳곳에 9
 
 ---
 
+## 8. 이 어플리케이션을 github pages에 배포하는 방법을 정리해서 GITHUB_PAGES.md로 저장해줘. 내 github 계정은 seedevk8s이고 사용할 repo 이름은  tetris2로 할거야. 별도의 repo로 배포하려고 하니 어떤 순서로 해야 하는지 해당 문서에 정리해줘. 네가 할 수 있는 작업과 내가 해야 하는 작업을 분리해서 명기해줘.
+
+`GITHUB_PAGES.md` 를 썼습니다. **역할 분담을 추측하지 않고 먼저 환경을 확인**했습니다.
+
+| 확인 | 결과 | 분담에 미친 영향 |
+|---|---|---|
+| `gh` CLI | **없음** (`which gh` 실패) | 저장소 생성·설정 변경을 대신 할 수 없음 → 사용자 몫 |
+| SSH 인증 | `Hi seedevk8s!` **통과** | 저장소가 생기면 push 는 Claude 가 가능 |
+| `tetris2` 존재 | **없음** (`Repository not found`) | 사용자가 먼저 만들어야 함 |
+| `subtree split` | **동작함** | 히스토리를 살린 배포가 가능 |
+| 파일 경로 | `style.css`·`script.js` 모두 **상대 경로** | `/tetris2/` 하위에서도 그대로 동작 → 고칠 코드 없음 |
+
+마지막 항목이 중요했습니다. Pages 프로젝트 페이지는 주소가 `/저장소이름/` 하위로 들어가서
+`/style.css` 같은 절대 경로를 썼다면 전부 404 가 납니다. 이 프로젝트는 처음부터 상대 경로라
+`index.html` 을 한 줄도 고치지 않아도 됐습니다.
+
+배포 방식은 두 가지를 적고 **히스토리를 살리는 `git subtree split`** 을 권했습니다.
+부트캠프 결과물이라 만들어진 과정이 커밋으로 남는 편이 낫다고 봤습니다.
+
+---
+
+## 9. 저장소 만들었어, 배포 진행해줘
+
+저장소가 비어 있는 것을 확인하고(`git ls-remote` 출력 없음) 방식 A 로 push 했습니다.
+
+```bash
+SPLIT=$(git subtree split -q -P src/exercise/chjin/day02/tetris)
+git push git@github.com:seedevk8s/tetris2.git "$SPLIT":refs/heads/main
+# * [new branch]  da30c0d -> main
+```
+
+수업 저장소는 변경되지 않았고, 폴더 내용이 `tetris2` 의 **루트**에 놓였습니다.
+
+**틀린 수치를 하나 고쳤습니다** — `GITHUB_PAGES.md` 에 "24개 커밋이 옮겨진다"고 적었는데
+실제로는 **3개**입니다. `git subtree split` 진행 표시의 대괄호 숫자를 커밋 수로 잘못 읽었습니다.
+실제 값은 `git rev-list --count` 로 확인했고 문서도 고쳤습니다.
+(이 폴더를 건드린 커밋이 3개인 것이 맞습니다 — 최초 구현, BGM 추가, 문서 정리)
+
+배포 주소가 열리려면 사용자가 **Settings → Pages** 에서 소스를 지정해야 합니다.
+이 설정은 API 없이는 바꿀 수 없어 넘겼습니다.
+
+---
+
 ## 최종 구성
 
 ```
 day02/tetris/
 ├── CLAUDE.md          이 폴더의 작업 규약 (git 정책 · 게임 규약 · BGM 규약 · 검증)
+├── GITHUB_PAGES.md    GitHub Pages 배포 절차 (역할 분담 · 재배포 · 트러블슈팅)
 ├── PLAN.md            설계 기준선 — 무엇을 만들기로 했는지
 ├── README.md          사용법 — 실행 · 조작 · 점수 규칙 · 음악
 ├── WORKFLOW.md        작업 기록 — 어떻게 거기 도달했는지 (이 문서)
