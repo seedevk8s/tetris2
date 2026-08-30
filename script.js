@@ -163,6 +163,7 @@ let paused = false;
 let gameOver = false;
 let inputLocked = false;   // 화면 위에 폼이 떠 있을 때 게임 키를 막습니다
 let pausedByModal = false;
+let locked = true;         // 외부 조건(로그인)이 풀리기 전까지 게임을 잠급니다
 
 let audioCtx = null;   // 첫 사용자 조작 때 만듭니다 (브라우저 자동재생 정책)
 let master = null;
@@ -491,7 +492,7 @@ function loop(time) {
   const delta = Math.min(time - lastTime, MAX_DELTA);
   lastTime = time;
 
-  if (!paused && !gameOver) {
+  if (!paused && !gameOver && !locked) {
     dropTimer += delta;
     if (dropTimer >= dropInterval) {
       dropTimer = 0;
@@ -512,11 +513,15 @@ const GAME_KEYS = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','Spacebar'
 
 document.addEventListener('keydown', (e) => {
   // 폼이 떠 있는 동안에는 게임이 키를 가져가지 않습니다.
-  // 막지 않으면 닉네임에 'p' 를 치는 순간 일시정지가 걸립니다.
+  // 막지 않으면 닉네임에 'p' 를 치는 순간 일시정지가 걸리고,
+  // 비밀번호에 스페이스를 넣을 수도 없게 됩니다(preventDefault 보다 먼저 나가야 하는 이유).
   if (inputLocked) return;
 
   // 방향키·스페이스는 페이지를 스크롤시키므로 게임 키에 대해 막습니다
   if (GAME_KEYS.includes(e.key)) e.preventDefault();
+
+  // 잠긴 동안에는 R·P·M 을 포함해 어떤 키에도 반응하지 않습니다
+  if (locked) return;
 
   if (!muted) ensureAudio();   // 첫 조작이 있어야 소리를 낼 수 있습니다
 
@@ -538,12 +543,14 @@ document.addEventListener('keydown', (e) => {
 });
 
 btnRestart.addEventListener('click', () => {
+  if (locked) return;
   if (!muted) ensureAudio();
   start();
   btnRestart.blur();   // 포커스가 남으면 Space 가 버튼을 다시 누릅니다
 });
 
 btnSound.addEventListener('click', () => {
+  if (locked) return;
   toggleMute();
   btnSound.blur();
 });
@@ -557,13 +564,34 @@ document.addEventListener('visibilitychange', () => {
    시작
    ────────────────────────────────────────── */
 
-/* 게임 밖(로그인 폼 등)에서 잠깐 멈춰 둘 때 쓰는 최소한의 창구입니다.
-   게임은 누가 왜 멈추는지 알지 않습니다. */
+/* 게임 밖(로그인 등)에서 게임을 잠그거나 잠깐 멈춰 둘 때 쓰는 창구입니다.
+   게임은 누가 왜 잠그는지 알지 않습니다 — 잠긴 이유는 호출하는 쪽이 문구로 넘깁니다.
+
+   lock/unlock  조건이 갖춰질 때까지 게임 자체를 막습니다 (로그인 게이트)
+   suspend/resume  폼이 떠 있는 동안만 잠깐 멈춥니다 (입력 가로채기 방지) */
 window.TetrisGame = {
+
+  lock(title, desc) {
+    locked = true;
+    if (audioCtx) audioCtx.suspend();
+    btnRestart.hidden = true;          // 잠금 중에는 재시작으로 빠져나갈 수 없습니다
+    showOverlay(title, desc);
+  },
+
+  unlock() {
+    if (!locked) return;
+    locked = false;
+    btnRestart.hidden = false;
+    start();                           // 잠금이 풀리면 새 판으로 시작합니다
+  },
+
+  isLocked() { return locked; },
+
   suspend() {
     inputLocked = true;
-    if (!paused && !gameOver) { pausedByModal = true; togglePause(); }
+    if (!paused && !gameOver && !locked) { pausedByModal = true; togglePause(); }
   },
+
   resume() {
     inputLocked = false;
     if (pausedByModal && paused) togglePause();
@@ -583,13 +611,25 @@ function start() {
   paused = false;
   gameOver = false;
 
-  hideOverlay();
   updateStats();
   updateSoundButton();
   resetMusic();
+
+  if (locked) {
+    spawn();          // 보드는 준비해 두되 오버레이는 그대로 둡니다
+    return;
+  }
+
+  hideOverlay();
   if (audioCtx && audioCtx.state === 'suspended' && !muted) audioCtx.resume();
   spawn();
 }
+
+/* 잠긴 상태로 시작합니다. 잠금을 푸는 조건(로그인)은 account-ui.js 가 판단합니다.
+   기본값을 '잠김'으로 둔 이유는, 판단이 끝나기 전 한순간이라도 게임이 돌면
+   로그인 없이 플레이할 수 있는 틈이 생기기 때문입니다. */
+showOverlay('로그인이 필요합니다', '오른쪽 패널에서 로그인하거나 가입해 주세요');
+btnRestart.hidden = true;
 
 start();
 lastTime = performance.now();

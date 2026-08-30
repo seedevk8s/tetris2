@@ -142,6 +142,40 @@ ok('마디 첫 음이 모두 실음', silentBar === 0);
 ensureAudio();
 ok('AudioContext 없으면 조용히 넘어감', audioCtx === null);
 
+// 10. 로그인 게이트 — 잠긴 동안에는 게임이 진행되지 않아야 합니다
+ok('기본 상태가 잠김', locked === true);
+ok('잠금 창구가 노출됨',
+   typeof window.TetrisGame.lock === 'function' && typeof window.TetrisGame.unlock === 'function');
+
+// 잠긴 채로 루프를 크게 돌려도 조각이 내려오지 않아야 합니다
+board = Array.from({length: ROWS}, () => new Array(COLS).fill(null));
+piece = { type: 'O', rot: 0, x: 3, y: 0 };
+dropTimer = 0; paused = false; gameOver = false;
+lastTime = 0;
+for (let t = 100; t <= 2000; t += 100) loop(t);
+ok('잠긴 동안 낙하하지 않음', piece.y === 0);
+ok('잠긴 동안 낙하 타이머가 쌓이지 않음', dropTimer === 0);
+
+// 잠금을 풀면 새 판이 시작되고 진행됩니다
+window.TetrisGame.unlock();
+ok('unlock 하면 잠김이 풀림', locked === false);
+ok('unlock 이 새 판을 시작함', board.every(row => row.every(c => c === null)));
+
+// 프레임 간격이 MAX_DELTA(100ms)로 잘리므로 dropInterval(800ms)를 넘기려면 여러 프레임이 필요합니다
+const yBefore = piece.y;
+lastTime = 0;
+for (let t = 100; t <= 1000; t += 100) loop(t);
+ok('잠금이 풀리면 낙하함', piece.y > yBefore);
+
+// 다시 잠그면 멈춥니다
+window.TetrisGame.lock('테스트', '잠금');
+ok('lock 하면 다시 잠김', locked === true);
+const yLocked = piece.y;
+lastTime = 0;
+for (let t = 100; t <= 2000; t += 100) loop(t);
+ok('다시 잠근 뒤 낙하하지 않음', piece.y === yLocked);
+ok('잠금 중에는 재시작 버튼이 숨겨짐', btnRestart.hidden === true);
+
 console.log('\\n  ' + pass + ' passed, ' + fail + ' failed');
 if (fail) process.exit(1);
 `;

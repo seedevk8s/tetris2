@@ -51,6 +51,7 @@
     authForm.reset();
     setMsg('');
     if (window.TetrisGame) TetrisGame.resume();
+    applyGate(TetrisAuth.currentUser());   // 로그인하지 않고 닫으면 다시 잠금 화면으로
   }
 
   function setMsg(text, ok = false) {
@@ -247,8 +248,17 @@
     if (!modal.hidden && e.key === 'Escape') closeModal();
   });
 
+  /* 로그인 게이트 — 로그인해야 게임이 시작됩니다.
+     게임은 자기가 왜 잠겼는지 모르고, 잠금 문구는 여기서 넘깁니다. */
+  function applyGate(user) {
+    if (!window.TetrisGame) return;
+    if (user) TetrisGame.unlock();
+    else TetrisGame.lock('로그인이 필요합니다', '오른쪽 패널에서 로그인하거나 가입해 주세요');
+  }
+
   TetrisAuth.onChange((user) => {
     renderAccount(user);
+    applyGate(user);
     refreshAll();
   });
 
@@ -264,8 +274,11 @@
   /* ── 시작 ── */
 
   (async function boot() {
+    // script.js 가 이미 잠긴 채로 시작합니다. 여기서는 세션을 확인해 풀기만 합니다.
+    // 확인이 끝나기 전에는 잠긴 상태가 유지되므로 로그인 없이 플레이할 틈이 없습니다.
     const fromLink = await TetrisAuth.init();
     if (fromLink && fromLink.type === 'recovery') openModal('reset');
+    applyGate(TetrisAuth.currentUser());
     refreshAll();
   })();
 
