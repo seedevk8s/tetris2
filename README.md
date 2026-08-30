@@ -14,7 +14,7 @@
 | `script.js` | 게임 로직 전부 — 조각 정의, 충돌 판정, 게임 루프, 렌더링, BGM |
 | `PLAN.md` | 만들기 전에 정한 설계 기준선 |
 | `GITHUB_PAGES.md` | GitHub Pages 배포 절차 |
-| `SUPABASE.md` | Supabase(로그인·점수 저장) 준비 절차 — **아직 미구현** |
+| `SUPABASE.md` | Supabase(이메일 로그인·점수 저장) 준비 절차 — **아직 미구현** |
 | `DB_DESIGN.md` | 위 기능의 DB 설계 — **아직 미구현** |
 | `README.md` | 이 문서 |
 | `WORKFLOW.md` | 제작 과정 기록 |

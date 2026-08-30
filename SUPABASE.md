@@ -4,14 +4,14 @@
 Supabase 가입부터 시작해, 배포본(<https://seedevk8s.github.io/tetris2/>)에서 동작하기까지의 순서를 정리했습니다.
 
 > **이 문서는 준비 단계까지입니다.** 코드 구현은 아직 하지 않았습니다.
-> 아래 사용자 작업(1~7단계)이 끝나고 요청하시면 그때 구현합니다.
+> 아래 사용자 작업(1~6단계)이 끝나고 요청하시면 그때 구현합니다.
 
 **함께 보는 문서**
 
 | 문서 | 내용 |
 |---|---|
 | [DB_DESIGN.md](DB_DESIGN.md) | 테이블·인덱스·트리거·RLS 설계와 그렇게 정한 이유, 조회 패턴 |
-| [PLAN.md](PLAN.md) | 무엇을 어떤 순서로 구현할지 |
+| [PLAN.md](PLAN.md) | 무엇을 어떤 순서로 구현할지 (Phase 2) |
 | [GITHUB_PAGES.md](GITHUB_PAGES.md) | 배포 절차 (이미 완료) |
 
 ---
@@ -28,7 +28,8 @@ Supabase 가입부터 시작해, 배포본(<https://seedevk8s.github.io/tetris2/
 
 | 기능 | 내용 |
 |---|---|
-| 로그인 | **GitHub 계정으로** 로그인 (버튼 하나) |
+| 회원가입 | **이메일 · 비밀번호 · 닉네임** |
+| 로그인 | 이메일 · 비밀번호 |
 | 점수 저장 | 게임이 끝나면 점수·지운 줄·레벨을 기록 |
 | 전체 랭킹 | 상위 10명을 닉네임과 함께 표시 |
 | 내 기록 | 내 최고 점수와 최근 플레이 |
@@ -36,11 +37,14 @@ Supabase 가입부터 시작해, 배포본(<https://seedevk8s.github.io/tetris2/
 **로그인하지 않아도 게임은 그대로 됩니다.** 로그인은 기록을 남기고 싶을 때만 하는 선택이고,
 Supabase가 죽어도 게임 자체는 멀쩡히 돌아가야 합니다. 이 원칙을 구현 내내 지킵니다.
 
+**닉네임을 가입할 때 함께 받습니다.** 이메일 로그인은 GitHub 로그인과 달리 표시할 이름이 없는데,
+이메일 주소를 랭킹에 그대로 쓰면 **모르는 사람에게 이메일이 공개됩니다.** 그래서 따로 받습니다.
+
 ---
 
 ## 역할 분담 — 누가 무엇을 하나
 
-**Supabase 가입·프로젝트 생성·GitHub OAuth 앱 등록은 사용자만 할 수 있습니다.**
+**Supabase 가입·프로젝트 생성·대시보드 설정은 사용자만 할 수 있습니다.**
 계정 소유자만 할 수 있는 일이고, 이 환경에는 그 권한이 없습니다.
 반면 **SQL 작성·프론트엔드 코드·문서·배포는 제가 합니다.**
 
@@ -49,34 +53,30 @@ Supabase가 죽어도 게임 자체는 멀쩡히 돌아가야 합니다. 이 원
 | 1 | Supabase 가입 | **사용자** | supabase.com |
 | 2 | 프로젝트 생성 | **사용자** | Supabase 대시보드 |
 | 3 | Project URL · anon key 확인해 알려주기 | **사용자** | Supabase 대시보드 |
-| 4 | GitHub OAuth 앱 등록 | **사용자** | GitHub 설정 |
-| 5 | Supabase에 GitHub 연동 정보 입력 | **사용자** | Supabase 대시보드 |
-| 6 | 로그인 후 돌아올 주소 등록 | **사용자** | Supabase 대시보드 |
-| 7 | 테이블·보안정책 SQL 실행 | **사용자** | Supabase SQL Editor |
+| 4 | 이메일 로그인 설정 (확인 메일 정책 결정) | **사용자** | Supabase 대시보드 |
+| 5 | 메일 링크가 돌아올 주소 등록 | **사용자** | Supabase 대시보드 |
+| 6 | 테이블·보안정책 SQL 실행 | **사용자** | Supabase SQL Editor |
 | — | 그 SQL 작성해 주기 | **Claude** | 이 터미널 |
-| 8 | 프론트엔드 구현 (로그인·저장·랭킹) | **Claude** | 이 터미널 |
-| 9 | 문서 갱신 · 커밋 · 배포 | **Claude** | 이 터미널 |
-| 10 | 배포본에서 동작 확인 | **사용자** | 브라우저 |
+| 7 | 프론트엔드 구현 (가입·로그인·저장·랭킹) | **Claude** | 이 터미널 |
+| 8 | 문서 갱신 · 커밋 · 배포 | **Claude** | 이 터미널 |
+| 9 | 배포본에서 동작 확인 | **사용자** | 브라우저 |
 
-7단계는 **제가 SQL을 써 드리면 사용자가 붙여넣고 실행**하는 형태입니다.
+6단계는 **제가 SQL을 써 드리면 사용자가 붙여넣고 실행**하는 형태입니다.
 대시보드에 접근할 방법이 없어 실행만 넘깁니다.
 
 ---
 
-# 사용자가 해야 하는 일 (1~7단계)
+# 사용자가 해야 하는 일 (1~6단계)
 
 ## 1단계 — Supabase 가입
 
 <https://supabase.com> → 우측 상단 **Start your project**
 
-가입 방법을 고르는 화면에서 **Continue with GitHub** 를 권합니다.
+가입 방법은 **GitHub 계정으로 하는 것이 편합니다** — 이미 GitHub을 쓰고 계시고,
+비밀번호를 새로 만들 필요가 없습니다. 이메일로 가입해도 무방합니다.
 
-- 어차피 4단계에서 GitHub OAuth 앱을 등록해야 하고,
-- 로그인 방식도 GitHub이라 계정이 한 곳으로 모입니다.
-- 비밀번호를 새로 만들 필요도 없습니다.
-
-GitHub 권한 승인 화면이 뜨면 **Authorize** 합니다.
-(이건 Supabase에 로그인하기 위한 승인이고, 4단계의 OAuth 앱 등록과는 별개입니다)
+> 헷갈리기 쉬운 부분: **이건 사용자(개발자)가 Supabase 대시보드에 로그인하는 방법**이고,
+> **게임 플레이어가 로그인하는 방법(이메일)과는 완전히 별개**입니다.
 
 **신용카드는 필요 없습니다.** 무료 플랜으로 시작합니다.
 
@@ -107,51 +107,55 @@ GitHub 권한 승인 화면이 뜨면 **Authorize** 합니다.
 |---|---|---|
 | **Project URL** | `https://abcdefgh....supabase.co` | **네, 알려주세요** |
 | **anon / public key** | `eyJhbGci...` 로 시작하는 긴 문자열 (또는 `sb_publishable_...`) | **네, 알려주세요** |
-| ~~service_role key~~ | `eyJhbGci...` (secret 라고 표시됨) | **절대 알려주지 마세요** |
+| ~~service_role key~~ | `eyJhbGci...` (secret 이라고 표시됨) | **절대 알려주지 마세요** |
 
 **anon key 는 공개해도 되는 키입니다.** 브라우저 코드에 그대로 들어가고,
 GitHub Pages는 정적 호스팅이라 소스를 누구나 볼 수 있습니다. 그게 정상입니다.
 이 키는 "누구인지"를 증명하지 않고 **"어느 프로젝트인지"만** 가리킵니다.
-실제 방어는 7단계의 **RLS(행 수준 보안)** 가 합니다.
+실제 방어는 6단계의 **RLS(행 수준 보안)** 가 합니다.
 
 **service_role key 는 RLS를 통째로 무시하는 마스터 키입니다.**
 브라우저 코드나 저장소에 절대 들어가면 안 됩니다. 화면에서 보더라도 복사하지 마세요.
 
-## 4단계 — GitHub OAuth 앱 등록
+## 4단계 — 이메일 로그인 설정
 
-"GitHub으로 로그인"이 동작하려면 GitHub 쪽에 앱을 등록해야 합니다.
+Supabase 대시보드 → **Authentication** → **Sign In / Providers** → **Email**
 
-<https://github.com/settings/developers> → **OAuth Apps** → **New OAuth App**
+**Email 은 기본으로 켜져 있습니다.** 켜져 있는지만 확인하면 됩니다.
+여기서 **결정할 것이 하나** 있습니다.
 
-| 항목 | 값 |
-|---|---|
-| Application name | `tetris2` (사용자에게 보이는 이름입니다) |
-| Homepage URL | `https://seedevk8s.github.io/tetris2/` |
-| Authorization callback URL | **`https://<프로젝트-ref>.supabase.co/auth/v1/callback`** |
+### Confirm email — 켤 것인가 끌 것인가
 
-**Callback URL 이 핵심입니다.** `<프로젝트-ref>` 는 3단계의 Project URL에 들어 있는
-`https://` 와 `.supabase.co` 사이의 문자열입니다.
-GitHub Pages 주소가 아니라 **Supabase 주소**를 넣어야 합니다 —
-GitHub이 로그인을 처리한 뒤 먼저 Supabase에게 돌려주고, Supabase가 다시 우리 페이지로 보내는 순서이기 때문입니다.
+가입할 때 **"메일함을 열어 링크를 눌러야 계정이 활성화되는" 절차**입니다. 기본값은 **켜짐**입니다.
 
-등록하면 **Client ID** 가 보이고, **Generate a new client secret** 을 눌러 **Client Secret** 을 만듭니다.
-**Secret은 이 화면을 벗어나면 다시 볼 수 없습니다.** 바로 다음 단계로 넘어가세요.
+| | 끄기 **(이 프로젝트에 권장)** | 켜두기 |
+|---|---|---|
+| 가입 경험 | 입력하면 **바로 로그인** | 메일 확인 후에야 로그인 |
+| 필요한 준비 | 없음 | 실제로 메일이 가야 함 (아래 참고) |
+| 적합한 곳 | 수업 과제·데모 | 실서비스 |
 
-## 5단계 — Supabase에 GitHub 연동 정보 넣기
+**끄는 것을 권합니다.** 이유는 발송 한도입니다.
 
-Supabase 대시보드 → **Authentication** → **Sign In / Providers** → 목록에서 **GitHub**
+> **Supabase가 기본 제공하는 메일 발송은 테스트용이고 한도가 매우 낮습니다**(시간당 몇 통 수준).
+> 여러 명이 동시에 가입을 시도하면 **메일이 오지 않아 아무도 가입을 못 끝냅니다.**
+> 정확한 한도는 대시보드의 **Authentication → Rate Limits** 에서 확인할 수 있습니다.
+> 실서비스로 쓰려면 별도 SMTP(SendGrid·Resend 등)를 연결해야 하는데, 이 프로젝트 범위를 넘습니다.
 
-1. **Enable Sign in with GitHub** 켜기
-2. **Client ID** — 4단계에서 받은 값
-3. **Client Secret** — 4단계에서 받은 값
-4. **Save**
+**끄는 방법** — Authentication → Sign In / Providers → Email → **Confirm email** 을 끄고 Save.
 
-이 두 값도 **저에게 알려주실 필요 없습니다.** 대시보드에만 있으면 됩니다.
+이 선택의 대가는 분명합니다. **남의 이메일 주소로도 가입할 수 있게 됩니다.**
+점수 랭킹 앱이라 감수할 만하지만, 알고 끄는 것과 모르고 끄는 것은 다릅니다.
 
-## 6단계 — 로그인 후 돌아올 주소 등록
+### 비밀번호 규칙 (선택)
 
-로그인이 끝나면 브라우저를 우리 페이지로 되돌려 보내야 하는데,
-Supabase는 **미리 등록된 주소로만** 되돌려 줍니다. 아무 데로나 보내면 피싱에 쓰이기 때문입니다.
+같은 화면 아래 **Password** 항목에서 최소 길이를 정할 수 있습니다. 기본은 6자입니다.
+**8자 이상**을 권합니다. `Prevent use of leaked passwords` 옵션이 있으면 함께 켜 두세요.
+
+## 5단계 — 메일 링크가 돌아올 주소 등록
+
+**비밀번호 재설정**(그리고 확인 메일을 켰다면 가입 확인)은 메일 속 링크를 눌러
+우리 페이지로 돌아오는 방식입니다. Supabase는 **미리 등록된 주소로만** 되돌려 줍니다.
+아무 데로나 보내면 피싱에 쓰이기 때문입니다.
 
 Supabase 대시보드 → **Authentication** → **URL Configuration**
 
@@ -161,11 +165,14 @@ Supabase 대시보드 → **Authentication** → **URL Configuration**
 | Redirect URLs | `https://seedevk8s.github.io/tetris2/**` <br> `http://localhost:8080/**` |
 
 **로컬 주소도 함께 넣어야 합니다.** 개발할 때 `python3 -m http.server 8080` 으로 열어 보는데,
-그 주소가 등록돼 있지 않으면 로컬에서는 로그인 테스트를 아예 못 합니다.
+그 주소가 등록돼 있지 않으면 로컬에서는 비밀번호 재설정 흐름을 테스트할 수 없습니다.
 
 경로(`/tetris2/`)까지 정확히 넣어야 합니다. GitHub Pages는 저장소 이름이 경로에 들어갑니다.
 
-## 7단계 — 테이블과 보안정책 만들기
+> 로그인·회원가입 자체는 **리다이렉트 없이** 동작합니다(6단계 아래 설명 참고).
+> 이 설정은 **메일 링크를 통해 돌아올 때만** 쓰입니다.
+
+## 6단계 — 테이블과 보안정책 만들기
 
 무엇을 왜 이렇게 만드는지는 **[DB_DESIGN.md](DB_DESIGN.md)** 에 정리해 두었습니다.
 여기서는 실행만 합니다.
@@ -175,27 +182,29 @@ Supabase 대시보드 → **SQL Editor** → **New query** → 아래를 **통�
 ```sql
 -- ─────────────────────────────────────────────
 -- 1. 프로필 — 랭킹에 보여줄 닉네임
+--    이메일 주소를 랭킹에 노출하지 않기 위해 따로 둡니다.
 -- ─────────────────────────────────────────────
 create table public.profiles (
   id          uuid primary key references auth.users on delete cascade,
   username    text not null,
-  avatar_url  text,
   created_at  timestamptz not null default now()
 );
 
--- GitHub 로그인 시 닉네임·아바타를 자동으로 채웁니다.
--- 사용자가 직접 넣게 두면 남의 이름을 사칭할 수 있습니다.
+-- 가입할 때 함께 받은 닉네임을 프로필로 옮깁니다.
+-- 프론트엔드가 직접 넣게 두면 남의 이름을 사칭하거나 프로필 없는 계정이 생깁니다.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = ''
 as $$
 begin
-  insert into public.profiles (id, username, avatar_url)
+  insert into public.profiles (id, username)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data->>'user_name', 'player'),
-    new.raw_user_meta_data->>'avatar_url'
+    coalesce(
+      nullif(trim(new.raw_user_meta_data->>'username'), ''),
+      'player' || substr(new.id::text, 1, 4)
+    )
   );
   return new;
 end;
@@ -241,11 +250,12 @@ create policy "내 점수만 등록" on public.scores
 
 -- ─────────────────────────────────────────────
 -- 4. 랭킹 조회용 뷰 — 점수와 닉네임을 함께
+--    profiles 만 조인하므로 이메일은 어디에도 나오지 않습니다.
 -- ─────────────────────────────────────────────
 create view public.leaderboard
 with (security_invoker = true) as
   select s.id, s.score, s.lines, s.level, s.created_at,
-         p.username, p.avatar_url
+         p.username
   from public.scores s
   join public.profiles p on p.id = s.user_id
   order by s.score desc, s.created_at asc;
@@ -257,18 +267,18 @@ with (security_invoker = true) as
 
 ---
 
-# Claude 가 하는 일 (8~9단계)
+# Claude 가 하는 일 (7~8단계)
 
 준비가 끝나면 아래를 구현합니다. **지금은 하지 않습니다.**
 
 | 파일 | 역할 |
 |---|---|
 | `supabase-config.js` | Project URL · anon key **한 곳에만**. 환경이 바뀌면 이 파일만 교체 |
-| `auth.js` | GitHub 로그인 · 로그아웃 · 세션 복원 |
+| `auth.js` | 회원가입 · 로그인 · 로그아웃 · 세션 저장/복원 · 토큰 갱신 |
 | `api.js` | 점수 등록 · 랭킹 조회 · 내 기록 조회 (`fetch` 직접 호출) |
-| `index.html` · `style.css` | 로그인 버튼, 랭킹 패널, 내 기록 표시 |
+| `index.html` · `style.css` | 가입·로그인 폼, 랭킹 패널, 내 기록 표시 |
 | `script.js` | 게임오버 시 점수 전송 (**실패해도 게임은 계속**) |
-| `test/` | 랭킹 정렬·응답 파싱 등 순수 로직 검증 |
+| `test/` | 랭킹 정렬·응답 파싱·입력 검증 등 순수 로직 검증 |
 | 문서 4종 | `PLAN.md` · `README.md` · `WORKFLOW.md` · `CLAUDE.md` 갱신 |
 
 ---
@@ -283,56 +293,71 @@ with (security_invoker = true) as
 **Supabase는 그냥 HTTP API 입니다.** `fetch` 로 직접 부르면 라이브러리가 필요 없습니다.
 
 ```js
-// 랭킹 상위 10개
-const res = await fetch(
-  `${SUPABASE_URL}/rest/v1/leaderboard?select=*&limit=10`,
-  { headers: { apikey: ANON_KEY } }
-);
-
-// 내 점수 등록
-await fetch(`${SUPABASE_URL}/rest/v1/scores`, {
+// 회원가입 — 닉네임은 data 로 함께 보냅니다 (트리거가 이 값을 읽습니다)
+await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
   method: 'POST',
-  headers: {
-    apikey: ANON_KEY,
-    Authorization: `Bearer ${accessToken}`,
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({ user_id, score, lines, level }),
+  headers: { apikey: ANON_KEY, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email, password, data: { username } }),
 });
+
+// 로그인 — 응답 본문에 토큰이 그대로 들어옵니다
+const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+  method: 'POST',
+  headers: { apikey: ANON_KEY, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email, password }),
+});
+const { access_token, refresh_token, expires_in } = await res.json();
+
+// 랭킹 상위 10개 — 로그인 없이도 됩니다
+await fetch(`${SUPABASE_URL}/rest/v1/leaderboard?select=*&limit=10`,
+  { headers: { apikey: ANON_KEY } });
 ```
 
-**대신 라이브러리가 대신 해 주던 일을 직접 써야 합니다** — 로그인 후 주소에 붙어 오는 토큰 파싱,
-토큰 만료 시 갱신, 새로고침해도 로그인이 유지되게 하는 세션 저장. 이건 구현할 때 다루겠습니다.
+## 이메일 로그인이 OAuth보다 단순한 지점
 
-트레이드오프는 분명합니다. **코드는 늘고, 무슨 일이 일어나는지는 드러납니다.**
-
-## 로그인은 이렇게 흘러갑니다
+처음에는 GitHub OAuth로 계획했다가 이메일로 바꿨습니다. **인증 흐름이 훨씬 짧아졌습니다.**
 
 ```
-[게임 화면]  "GitHub 으로 로그인" 클릭
-     │
-     ├─→ supabase.co/auth/v1/authorize?provider=github&redirect_to=...
-     │        │
-     │        └─→ github.com  "이 앱을 승인하시겠습니까?"
-     │                │
-     │                └─→ supabase.co/auth/v1/callback   ← 4단계에서 등록한 주소
-     │                        │
-     └────────────────────────┴─→ seedevk8s.github.io/tetris2/#access_token=...
-                                        │
-                            주소의 # 뒤에 붙어 온 토큰을 읽어 저장하고,
-                            주소창을 깨끗하게 지운 뒤 게임으로 복귀
+[OAuth 였다면]
+  버튼 클릭 → GitHub 승인 화면 → Supabase 콜백 → 우리 페이지로 리다이렉트
+  → 주소의 #access_token=... 을 파싱 → 주소창 정리 → 저장
+
+[이메일]
+  폼 제출 → POST /auth/v1/token → 응답 JSON 에 토큰 → 저장
 ```
 
-토큰이 **`#` 뒤(해시 프래그먼트)에 붙어 오는 것**이 중요합니다.
-`?` 뒤 쿼리스트링과 달리 해시는 **서버로 전송되지 않아** 로그 등에 남지 않습니다.
-GitHub Pages처럼 서버 코드를 둘 수 없는 정적 호스팅에서 OAuth를 쓸 수 있는 이유가 이것입니다.
+**페이지를 떠났다 돌아오지 않으므로** 해시 파싱도, 주소창 정리도 필요 없습니다.
+OAuth 앱 등록·Client Secret 관리도 사라집니다.
+
+대신 **늘어나는 것**도 있습니다.
+
+| 늘어나는 것 | 내용 |
+|---|---|
+| 화면 | 버튼 하나가 아니라 가입·로그인 폼 두 개 |
+| 입력 검증 | 이메일 형식, 비밀번호 길이, 닉네임 길이 |
+| 에러 처리 | 이메일 중복, 비밀번호 틀림, 미확인 계정 |
+| 비밀번호 재설정 | 이 흐름만 메일 링크 → 리다이렉트가 필요 |
+
+비밀번호를 직접 다루므로 **`type="password"` 를 쓰고, 값을 로그에 남기지 않고,
+어디에도 저장하지 않습니다.** GitHub Pages는 HTTPS라 전송 구간은 안전합니다.
+
+## 세션은 직접 유지해야 합니다
+
+라이브러리가 대신 해 주던 일입니다.
+
+| 지점 | 처리 |
+|---|---|
+| 새로고침하면 로그아웃됨 | `localStorage`에 세션 저장, 로드 시 복원 |
+| 토큰 만료(기본 1시간) | `expires_at` 확인 후 `/auth/v1/token?grant_type=refresh_token` |
+| 만료된 토큰으로 요청 | 401이 오면 한 번 갱신하고 재시도 |
 
 ## 데이터 구조와 보안
 
 설계 전문은 **[DB_DESIGN.md](DB_DESIGN.md)** 에 있습니다. 여기서는 결론만 옮깁니다.
 
 - **테이블은 둘입니다** — `scores`(기록)와 `profiles`(닉네임).
-  닉네임을 점수 행에 함께 저장하면 사칭이 가능해지고, 이름을 바꿨을 때 과거 기록이 따로 놉니다.
+  이메일 로그인에서는 이 분리가 **개인정보 문제**이기도 합니다.
+  한 테이블로 합쳐 이메일을 표시에 쓰면 랭킹에 남의 이메일이 공개됩니다.
   → [왜 테이블이 둘인가](DB_DESIGN.md#왜-테이블이-둘인가)
 - **anon key가 공개돼도 안전한 이유는 RLS 입니다.** 누구나 API를 부를 수 있지만,
   부르더라도 **자기 계정으로만** 쓸 수 있고 수정·삭제는 아무도 못 합니다.
@@ -347,6 +372,7 @@ GitHub Pages처럼 서버 코드를 둘 수 없는 정적 호스팅에서 OAuth�
 |---|---|
 | 비용 | 무료. 신용카드 불필요 |
 | DB 용량 | 500MB — 점수 몇 만 건은 문제없습니다 |
+| **메일 발송** | **기본 제공 메일은 테스트용, 시간당 몇 통 수준** (4단계 참고) |
 | **일시정지** | **일주일가량 아무 요청이 없으면 프로젝트가 멈춥니다** |
 | 되살리기 | 대시보드에서 **Restore** 클릭. 데이터는 남아 있습니다 |
 | 프로젝트 수 | 무료 조직당 2개 |
@@ -360,37 +386,38 @@ GitHub Pages처럼 서버 코드를 둘 수 없는 정적 호스팅에서 OAuth�
 
 | 증상 | 원인 | 해결 |
 |---|---|---|
-| 로그인 버튼을 눌러도 GitHub으로 안 감 | 5단계 GitHub provider 미활성 | Authentication → Providers → GitHub 켜기 |
-| GitHub이 `redirect_uri_mismatch` | 4단계 Callback URL 오타 | `https://<ref>.supabase.co/auth/v1/callback` 인지 확인 (Pages 주소 아님) |
-| 로그인 후 엉뚱한 데로 감 | 6단계 Redirect URLs 미등록 | 경로(`/tetris2/`)까지 정확히 등록 |
-| 로컬에서만 로그인이 안 됨 | `localhost:8080` 미등록 | Redirect URLs에 추가 |
-| 랭킹이 비어 있음 | RLS의 select 정책 누락 | 7단계 SQL을 다시 확인 |
-| 점수 등록이 401 | 토큰 없이 보냄 | 로그인 상태인지, `Authorization` 헤더가 붙는지 |
+| 가입은 됐는데 로그인이 `Email not confirmed` | 확인 메일이 켜져 있음 | 4단계에서 Confirm email 끄기 (또는 메일함 확인) |
+| 확인 메일이 안 옴 | 기본 메일 발송 한도 초과 | 스팸함 확인 → 그래도 없으면 확인 메일을 끄는 쪽으로 |
+| 가입이 `User already registered` | 같은 이메일이 이미 있음 | 다른 이메일을 쓰거나 로그인으로 |
+| 비밀번호가 `Password should be at least N characters` | 4단계 최소 길이 | 규칙에 맞게 입력 |
+| 로그인이 `Invalid login credentials` | 이메일·비밀번호 불일치 | 오타 확인. **어느 쪽이 틀렸는지 알려주지 않는 것이 정상**입니다 |
+| 비밀번호 재설정 링크가 엉뚱한 데로 감 | 5단계 Redirect URLs 미등록 | 경로(`/tetris2/`)까지 정확히 등록 |
+| 랭킹이 비어 있음 | RLS의 select 정책 누락 | 6단계 SQL을 다시 확인 |
+| 점수 등록이 401 | 토큰 없음·만료 | 로그인 상태인지, 갱신이 도는지 |
 | 점수 등록이 403 | RLS 위반 | `user_id` 가 로그인한 본인인지 |
 | 갑자기 전부 실패 | 프로젝트 일시정지 | 대시보드에서 Restore |
-| 닉네임이 `player` 로 나옴 | GitHub 메타데이터를 못 읽음 | 트리거의 `user_name` 키 확인 |
+| 닉네임이 `playerXXXX` 로 나옴 | 가입 시 닉네임이 안 넘어감 | `data: { username }` 이 실렸는지 |
 
 ---
 
 ## 요약
 
 ```
-[사용자]  1. supabase.com 가입 (Continue with GitHub)
+[사용자]  1. supabase.com 가입 (대시보드 로그인용 — 플레이어 로그인과 별개)
           2. 프로젝트 생성 (이름 tetris2, 리전 Seoul, DB 비번 보관)
           3. Settings → API 에서 Project URL · anon key 확인
-          4. github.com/settings/developers 에서 OAuth 앱 등록
-             callback = https://<ref>.supabase.co/auth/v1/callback
-          5. Supabase → Auth → Providers → GitHub 에 ID/Secret 입력
-          6. Auth → URL Configuration 에 Pages 주소 + localhost 등록
-          7. SQL Editor 에 이 문서의 SQL 붙여넣고 Run
+          4. Auth → Providers → Email 확인, Confirm email 끄기(권장)
+             비밀번호 최소 길이 8자 권장
+          5. Auth → URL Configuration 에 Pages 주소 + localhost 등록
+          6. SQL Editor 에 이 문서의 SQL 붙여넣고 Run
               ↓  "끝났다" + Project URL + anon key 알려주기
-[Claude]  8. 로그인 · 점수 저장 · 랭킹 구현 (fetch 직접 호출, 라이브러리 없음)
-          9. 문서 갱신 · 커밋 · tetris2 재배포
+[Claude]  7. 가입 · 로그인 · 점수 저장 · 랭킹 구현 (fetch 직접 호출, 라이브러리 없음)
+          8. 문서 갱신 · 커밋 · tetris2 재배포
               ↓
-[사용자] 10. https://seedevk8s.github.io/tetris2/ 에서 확인
+[사용자]  9. https://seedevk8s.github.io/tetris2/ 에서 확인
 ```
 
 설계 근거가 궁금하면 [DB_DESIGN.md](DB_DESIGN.md), 구현 순서는 [PLAN.md](PLAN.md)를 보세요.
 
-**저에게 알려줄 것** — Project URL, anon key, 그리고 "7단계까지 끝났다".
-**절대 알려주지 말 것** — Database Password, service_role key, GitHub Client Secret.
+**저에게 알려줄 것** — Project URL, anon key, 그리고 "6단계까지 끝났다".
+**절대 알려주지 말 것** — Database Password, service_role key, 그리고 **플레이어 계정 비밀번호**.

@@ -17,8 +17,7 @@ auth.users  (Supabase 가 관리 — 우리가 만들지 않음)
      │
      ├──1:1──→  profiles            랭킹에 보여줄 닉네임
      │            id  (= auth.users.id)
-     │            username
-     │            avatar_url
+     │            username            ← 가입할 때 받은 값
      │
      └──1:N──→  scores              게임 한 판의 결과
                   id
@@ -33,16 +32,20 @@ auth.users  (Supabase 가 관리 — 우리가 만들지 않음)
 
 ## 왜 테이블이 둘인가
 
-점수 행에 닉네임을 함께 저장하면 테이블 하나로 끝납니다. 그런데 두 가지가 깨집니다.
+점수 행에 닉네임을 함께 저장하면 테이블 하나로 끝납니다. 그런데 세 가지가 깨집니다.
 
 | 문제 | 내용 |
 |---|---|
-| **사칭** | 닉네임이 클라이언트가 보내는 값이 되어 남의 이름으로 점수를 올릴 수 있습니다. RLS는 `user_id`가 본인인지는 검사해도 닉네임까지 검증하지 못합니다. |
-| **이름 변경** | GitHub 아이디를 바꾸면 과거 기록만 옛 이름으로 남아 같은 사람이 둘로 보입니다. |
+| **개인정보** | 이메일 로그인이라 `auth.users`에는 **이메일**이 들어 있습니다. 표시할 이름을 따로 두지 않으면 랭킹에 이메일을 쓰게 되고, **모르는 사람에게 이메일이 공개됩니다.** |
+| **사칭** | 닉네임이 클라이언트가 매번 보내는 값이 되면 남의 이름으로 점수를 올릴 수 있습니다. RLS는 `user_id`가 본인인지는 검사해도 닉네임까지 검증하지 못합니다. |
+| **이름 변경** | 나중에 닉네임 변경을 넣으면 과거 기록만 옛 이름으로 남아 같은 사람이 둘로 보입니다. |
 
 그래서 **이름은 `profiles`에 한 번만** 두고, 점수 행은 `user_id`로 가리키기만 합니다.
-`profiles`는 사용자가 직접 쓰지 않고 **로그인할 때 트리거가 GitHub 정보로 채웁니다.**
+`profiles`는 프론트엔드가 직접 쓰지 않고 **가입할 때 트리거가 한 번 채웁니다.**
 쓸 수 없으니 사칭할 수도 없습니다.
+
+**`auth.users`는 랭킹 조회 경로에 아예 등장하지 않습니다.**
+`leaderboard` 뷰가 `scores ⋈ profiles` 만 조인하므로 이메일이 새어 나갈 통로가 없습니다.
 
 ---
 
@@ -56,9 +59,13 @@ auth.users  (Supabase 가 관리 — 우리가 만들지 않음)
 | 컬럼 | 타입 | 제약 | 왜 |
 |---|---|---|---|
 | `id` | `uuid` | PK, `→ auth.users(id)`, `on delete cascade` | 별도 키를 만들지 않고 인증 계정 id를 그대로 씁니다. 1:1이 구조로 보장됩니다 |
-| `username` | `text` | `not null` | GitHub 로그인명. 랭킹에 표시 |
-| `avatar_url` | `text` | | GitHub 프로필 이미지. 없을 수 있어 nullable |
+| `username` | `text` | `not null` | **가입할 때 받은 닉네임.** 랭킹에 표시되는 유일한 신원 |
 | `created_at` | `timestamptz` | `not null default now()` | 가입 시각 |
+
+**`username`에 `unique`를 걸지 않았습니다.** 걸면 닉네임이 겹칠 때 트리거가 실패하고,
+트리거는 회원가입과 같은 트랜잭션이라 **가입 자체가 알 수 없는 오류로 깨집니다.**
+중복 닉네임을 허용하는 대신, 랭킹에는 순위가 함께 나오므로 구분이 됩니다.
+정말 막아야 한다면 가입 화면에서 미리 조회해 확인하는 편이 낫습니다(경합은 남지만 실패가 부드럽습니다).
 
 `on delete cascade` — 계정을 지우면 프로필도 함께 사라집니다.
 `timestamptz`를 쓰는 이유는 `timestamp`가 시간대를 잃어버려 접속 지역이 다르면 시각이 어긋나기 때문입니다.
@@ -112,11 +119,13 @@ language plpgsql
 security definer set search_path = ''
 as $$
 begin
-  insert into public.profiles (id, username, avatar_url)
+  insert into public.profiles (id, username)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data->>'user_name', 'player'),
-    new.raw_user_meta_data->>'avatar_url'
+    coalesce(
+      nullif(trim(new.raw_user_meta_data->>'username'), ''),
+      'player' || substr(new.id::text, 1, 4)
+    )
   );
   return new;
 end;
@@ -127,12 +136,18 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 ```
 
-처음 로그인해 `auth.users`에 행이 생기는 순간 프로필을 만듭니다.
+회원가입으로 `auth.users`에 행이 생기는 순간 프로필을 만듭니다.
+가입 요청의 `data: { username }` 이 `raw_user_meta_data` 로 들어오고, 트리거가 그것을 옮깁니다.
+
 **프론트엔드에서 "프로필 있나 확인하고 없으면 만들기"를 하지 않는 이유**는,
 그 코드가 사칭 가능한 지점이 되고 네트워크가 끊기면 프로필 없는 계정이 남기 때문입니다.
 
-- `coalesce(..., 'player')` — GitHub 메타데이터에 `user_name`이 없을 때를 대비한 기본값입니다.
-  `username`이 `not null`이라 이게 없으면 로그인 자체가 실패합니다.
+- `nullif(trim(...), '')` — 공백만 보낸 경우를 빈 값으로 취급합니다.
+- `'player' || substr(new.id::text, 1, 4)` — 닉네임이 아예 없을 때의 기본값입니다.
+  `username`이 `not null`이라 이게 없으면 **가입 자체가 실패**합니다.
+  전부 `player`로 만들지 않고 id 앞 4자를 붙이는 이유는, 기본값끼리도 서로 구분되게 하기 위해서입니다.
+- **이메일을 기본값으로 쓰지 않습니다.** `split_part(new.email,'@',1)` 같은 방식이 흔하지만
+  이메일 아이디가 랭킹에 그대로 노출됩니다. 그러려고 테이블을 나눈 것이 아닙니다.
 - `security definer` — 함수 소유자 권한으로 실행합니다. 이게 없으면 RLS에 막혀 삽입이 실패합니다.
 - `set search_path = ''` — `security definer` 함수의 정석입니다.
   검색 경로를 비우지 않으면 같은 이름의 함수를 심어 권한을 가로채는 공격이 가능합니다.
@@ -146,7 +161,7 @@ create trigger on_auth_user_created
 create view public.leaderboard
 with (security_invoker = true) as
   select s.id, s.score, s.lines, s.level, s.created_at,
-         p.username, p.avatar_url
+         p.username
   from public.scores s
   join public.profiles p on p.id = s.user_id
   order by s.score desc, s.created_at asc;
@@ -154,6 +169,9 @@ with (security_invoker = true) as
 
 랭킹은 **점수와 닉네임을 함께** 보여줘야 하는데, 프론트엔드에서 두 번 조회해 합치면
 요청이 두 번 나가고 조인 로직이 클라이언트로 새어 나옵니다. 뷰로 DB에서 끝냅니다.
+
+**뷰가 `profiles`만 조인하는 것이 개인정보 경계**입니다. `auth.users`를 끌어들이면
+이메일이 조회 결과에 섞여 들어갈 수 있습니다. 랭킹에 필요한 것은 닉네임뿐입니다.
 
 `security_invoker = true` 가 중요합니다. 이게 없으면 뷰가 **만든 사람 권한**으로 돌아
 RLS를 우회합니다. 지금은 둘 다 공개 조회라 결과가 같지만, 나중에 정책을 조이면 구멍이 됩니다.
@@ -207,7 +225,7 @@ RLS가 보장하는 것은 "자기 계정으로만 쓸 수 있다"까지이고,
 ### 랭킹 TOP 10 (로그인 불필요)
 
 ```
-GET /rest/v1/leaderboard?select=score,lines,level,created_at,username,avatar_url&limit=10
+GET /rest/v1/leaderboard?select=score,lines,level,created_at,username&limit=10
 headers: apikey
 ```
 
@@ -245,7 +263,10 @@ body:    { "user_id": "<uid>", "score": 1200, "lines": 8, "level": 2 }
 | `best_score` 집계 컬럼 | `scores`에서 `max()`로 구하면 됩니다. 중복 저장은 어긋날 여지만 만듭니다 |
 | 소프트 삭제(`deleted_at`) | 기록을 지울 수 없게 설계했으므로 필요 없습니다 |
 | 판당 상세(조각 수·플레이 시간) | 지금 화면에 쓸 데가 없습니다. 필요해지면 컬럼을 더하면 됩니다 |
-| 닉네임 직접 수정 | 사칭 방지가 우선입니다. GitHub 이름을 그대로 씁니다 |
+| 닉네임 변경 | 가입 시 정한 이름을 씁니다. 넣으려면 `update` 정책(`auth.uid() = id`)을 추가하면 됩니다 |
+| 닉네임 중복 방지 | 트리거에서 실패하면 가입이 깨집니다(위 `username` 설명 참고) |
+| `avatar_url` | 이메일 가입에는 프로필 이미지를 받을 곳이 없습니다. 필요해지면 그때 더합니다 |
+| 이메일을 화면에 표시 | 개인정보라 어디에도 내보내지 않습니다 |
 | 사용자별 통계 테이블 | 판 수가 적어 매번 집계해도 충분합니다 |
 
 ---
