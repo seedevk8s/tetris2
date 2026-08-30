@@ -1,5 +1,7 @@
 # 테트리스
 
+**▶ 지금 해보기 — <https://seedevk8s.github.io/tetris2/>**
+
 라이브러리 없이 **HTML · CSS · JavaScript 만으로** 만든 테트리스입니다.
 `index.html` 을 브라우저에서 열면 바로 시작합니다. 설치도, 서버도, 빌드도 필요 없습니다.
 
@@ -11,6 +13,7 @@
 | `style.css` | 스타일 (day01 과 같은 다크 토큰 체계) |
 | `script.js` | 게임 로직 전부 — 조각 정의, 충돌 판정, 게임 루프, 렌더링, BGM |
 | `PLAN.md` | 만들기 전에 정한 설계 기준선 |
+| `GITHUB_PAGES.md` | GitHub Pages 배포 절차 |
 | `README.md` | 이 문서 |
 | `WORKFLOW.md` | 제작 과정 기록 |
 | `test/logic.test.js` | 로직 테스트 (개발용, 실행에는 불필요) |
@@ -19,7 +22,8 @@
 
 ## 실행
 
-`index.html` 을 더블클릭해 `file://` 로 열어도 그대로 동작합니다.
+배포된 주소(<https://seedevk8s.github.io/tetris2/>)로 바로 열 수 있고,
+내려받아 `index.html` 을 더블클릭해 `file://` 로 열어도 그대로 동작합니다.
 외부 파일을 `fetch` 하지 않으므로 CORS 에 걸릴 곳이 없습니다.
 
 로컬 서버로 열고 싶다면:

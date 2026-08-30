@@ -135,6 +135,18 @@ tetris/
   `AudioContext`가 없는 브라우저에서는 조용히 넘어가고 게임은 그대로 동작해야 합니다.
 - 음마다 게인으로 어택·릴리즈를 줍니다. 없으면 딸깍거리는 클릭음이 납니다.
 
+### 배포
+
+이 게임은 별도 저장소 `seedevk8s/tetris2` 로 **GitHub Pages 배포되어 있습니다**
+(<https://seedevk8s.github.io/tetris2/>). 절차는 `GITHUB_PAGES.md` 를 따릅니다.
+
+- **경로를 절대 경로로 쓰지 않습니다.** Pages 프로젝트 페이지는 주소가 `/tetris2/` 하위로
+  들어가므로 `/style.css` 같은 경로는 404 가 납니다. 항상 `style.css` 처럼 상대 경로로 씁니다.
+- **수업 저장소가 원본이고 `tetris2` 는 배포용 사본입니다.** `tetris2` 에서 직접 고치지 않습니다.
+- 재배포는 수업 저장소에 push 한 **뒤** `git subtree split` 결과를 `tetris2` 로 보냅니다.
+  배포용 사본이라 필요하면 `--force` 로 덮어써도 잃을 것이 없습니다.
+- 새 파일을 추가할 때 **`index.html`·`style.css`·`script.js` 는 저장소 루트**에 있어야 합니다.
+
 ### 검증
 
 브라우저가 없는 환경에서도 확인할 수 있도록 로직 테스트를 둡니다.

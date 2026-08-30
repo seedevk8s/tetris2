@@ -2,7 +2,8 @@
 
 이 테트리스를 **별도 저장소** `seedevk8s/tetris2` 로 옮겨 GitHub Pages 로 공개하는 절차입니다.
 
-> **2단계(push) 완료 — 2026-08-30.** 남은 것은 아래 **3단계(Pages 켜기)** 뿐입니다.
+> **배포 완료 — 2026-08-30.** <https://seedevk8s.github.io/tetris2/> 에서 동작을 확인했습니다.
+> 아래 1~4단계는 모두 끝났고, 이후에는 [코드를 고쳤을 때](#배포-후--코드를-고쳤을-때) 절만 보면 됩니다.
 
 - **배포 주소** — `https://seedevk8s.github.io/tetris2/`
 - **배포 대상** — `src/exercise/chjin/day02/tetris/` 의 내용 전부
